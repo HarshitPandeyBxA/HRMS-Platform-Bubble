@@ -56,10 +56,10 @@ public class AuthController {
      */
     @PostMapping("/me/password")
     @PermitAll
-    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+    public ResponseEntity<String> changePassword(@Valid @RequestBody ChangePasswordRequest request,
                                                Principal principal) {
         userService.changePassword(principal.getName(), request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Password updated");
     }
 
     /**

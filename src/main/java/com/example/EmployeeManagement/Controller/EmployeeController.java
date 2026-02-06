@@ -1,5 +1,6 @@
 package com.example.EmployeeManagement.Controller;
 
+import com.example.EmployeeManagement.DTO.EmployeeCreateRequestDTO;
 import com.example.EmployeeManagement.DTO.EmployeeDTO;
 import com.example.EmployeeManagement.Service.EmployeeService;
 import com.example.EmployeeManagement.Model.Employee;
@@ -49,9 +50,10 @@ public class EmployeeController {
         return ResponseEntity.ok(employee);
     }
 
+    // don't use this create employee from hr-ops token
     @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
     @PostMapping("/employees")
-    public ResponseEntity<EmployeeDTO> saveEmployee(@RequestBody Employee employee){
+    public ResponseEntity<EmployeeDTO> saveEmployee(@RequestBody EmployeeCreateRequestDTO employee){
         EmployeeDTO savedEmployee = employeeService.addEmployee(employee);
         return ResponseEntity.ok(savedEmployee);
     }
@@ -60,12 +62,12 @@ public class EmployeeController {
     @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
     @PutMapping("/employees/{id}")
     public ResponseEntity<EmployeeDTO> updateEmployee(@PathVariable("id") Long id,
-                                                      @RequestBody Employee employee){
+                                                      @RequestBody EmployeeCreateRequestDTO employee){
         EmployeeDTO updated = employeeService.updateEmployee(id, employee);
         return ResponseEntity.ok(updated);
     }
 
-    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
+//    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
     @DeleteMapping("/employees/{id}")
     public ResponseEntity<String> deleteEmployeeById(@PathVariable("id") Long id){
         employeeService.deleteEmployeeById(id);

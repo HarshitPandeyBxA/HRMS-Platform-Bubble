@@ -27,21 +27,18 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-
-    /**
-     * Register a new user.
-     * Default role: ROLE_EMPLOYEE
-     */
     @Transactional
     public User registerNewUser(RegisterRequest request) {
 
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Username is already taken");
+            throw new IllegalArgumentException("Username already exists");
         }
 
         Role employeeRole = roleRepository
                 .findByName(RoleConstants.ROLE_EMPLOYEE)
                 .orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
+
+        Long employeeId = userRepository.getNextEmployeeId();
 
         Set<Role> roles = new HashSet<>();
         roles.add(employeeRole);
@@ -49,15 +46,14 @@ public class UserService {
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .employeeId(request.getEmployeeId())
+                .employeeId(employeeId)
                 .enabled(true)
                 .roles(roles)
-                .mustChangePassword(true)   // 🔐 FORCE FIRST LOGIN CHANGE
+                .mustChangePassword(true)
                 .build();
 
         return userRepository.save(user);
     }
-
 
     //change password for logged-in users
     @Transactional
@@ -114,5 +110,4 @@ public class UserService {
                 resetLink
         );
     }
-
 }

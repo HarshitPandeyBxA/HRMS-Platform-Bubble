@@ -14,16 +14,19 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "employee_manager_history")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 //@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "historyId")
 
 public class EmployeeManagerHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long historyId;
 
     // FK → employee.employee_id (Phase-1: keep flat)

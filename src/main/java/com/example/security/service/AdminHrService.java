@@ -1,7 +1,11 @@
 package com.example.security.service;
 
+import com.example.EmployeeManagement.DTO.EmployeeCreateRequestDTO;
+import com.example.EmployeeManagement.DTO.EmployeeCreateResponse;
+import com.example.EmployeeManagement.DTO.EmployeeDTO;
 import com.example.security.constants.RoleConstants;
 import com.example.security.dto.CreateHrRequest;
+import com.example.security.dto.CreateHrRequestDTO;
 import com.example.security.model.Role;
 import com.example.security.model.User;
 import com.example.security.repository.RoleRepository;
@@ -21,38 +25,43 @@ public class AdminHrService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OnboardingService onboardingService;
+
 
     @Transactional
-    public User createHr(CreateHrRequest request) {
+    public EmployeeCreateResponse createHr(CreateHrRequestDTO request) {
 
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username already exists");
-        }
+        // 1️⃣ Build Employee DTO
+        EmployeeCreateRequestDTO dto = new EmployeeCreateRequestDTO();
+        dto.setFirstName(request.getFirstName());
+        dto.setLastName(request.getLastName());
+        dto.setDesignation(request.getDesignation());
+        dto.setPersonalEmail(request.getPersonalEmail());
+        dto.setDepartment(request.getDepartment());
+        dto.setEmployeeType("FULL_TIME");
 
-        // Mandatory EMPLOYEE role
-        Role employeeRole = roleRepository.findByName(RoleConstants.ROLE_EMPLOYEE)
-                .orElseThrow(() -> new RuntimeException("ROLE_EMPLOYEE not found"));
 
-        // HR role validation
-        Role hrRole = roleRepository.findByName(request.getHrRole())
-                .orElseThrow(() -> new RuntimeException("Invalid HR role"));
+        User systemAdmin = userRepository.findByUsername("admin@bounteous.com")
+                .orElseThrow(() -> new RuntimeException("Admin user not found"));
 
-        if (!request.getHrRole().startsWith("ROLE_HR")) {
-            throw new IllegalArgumentException("Invalid HR role assignment");
-        }
+        EmployeeCreateResponse response =
+                onboardingService.createEmployee(dto, systemAdmin);
 
-        Set<Role> roles = new HashSet<>();
-        roles.add(employeeRole);
-        roles.add(hrRole);
+        // 3️⃣ Assign HR ROLE
+        User hrUser = userRepository.findByEmployeeId(response.getEmployeeId())
+                .orElseThrow(() -> new RuntimeException("HR user not found"));
 
-        User hrUser = User.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getTempPassword()))
-                .enabled(true)
-                .roles(roles)
-                .build();
+//        Role hrRole = roleRepository.findByName(RoleConstants.ROLE_HR_OPERATIONS)
+//                .orElseThrow(() -> new RuntimeException("HR role not found"));
 
-        return userRepository.save(hrUser);
+        Role hrRole = roleRepository
+                .findByName(request.getRole())
+                .orElseThrow(() -> new RuntimeException("HR role not found"));
+
+        hrUser.getRoles().add(hrRole);
+        userRepository.save(hrUser);
+
+        return response;
     }
 }
 

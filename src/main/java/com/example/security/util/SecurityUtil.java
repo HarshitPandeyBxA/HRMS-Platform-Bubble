@@ -38,6 +38,9 @@ public class SecurityUtil {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
     }
 
-
+    public String getCurrentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getName(); // username (email)
+    }
 }
 
