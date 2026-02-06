@@ -10,13 +10,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class HrmsPlatformApplication {
 
 	public static void main(String[] args) {
-//        Dotenv dotenv = Dotenv.configure()
-//                .ignoreIfMissing()
-//                .load();
-//
-//        dotenv.entries().forEach(e ->
-//                System.setProperty(e.getKey(), e.getValue())
-//        );
+        Dotenv dotenv = Dotenv.configure()
+                .ignoreIfMissing()
+                .load();
+
+        dotenv.entries().forEach(e ->
+                System.setProperty(e.getKey(), e.getValue())
+        );
 
         SpringApplication.run(HrmsPlatformApplication.class, args);
 

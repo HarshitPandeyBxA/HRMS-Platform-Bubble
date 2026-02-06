@@ -13,8 +13,5 @@ public class RegisterRequest {
 
     @NotBlank
     private String password;
-
-    // Optional: link this login to an Employee record
-    private Long employeeId;
 }
 

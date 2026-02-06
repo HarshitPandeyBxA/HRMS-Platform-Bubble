@@ -10,10 +10,12 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "employee_hierarchy")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 //@JsonIdentityInfo(
 //        generator = ObjectIdGenerators.PropertyGenerator.class,
 //        property = "hierarchyId"
@@ -23,6 +25,7 @@ public class EmployeeHierarchy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long hierarchyId;
 
     // FK → employee.employee_id (manager)

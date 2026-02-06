@@ -11,6 +11,6 @@ public class EmployeeCreateResponse {
 
     private Long employeeId;
     private String username;
-    private String tempPassword;
+    private String status;
 }
 

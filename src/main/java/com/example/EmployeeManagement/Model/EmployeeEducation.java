@@ -13,16 +13,19 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "employee_education")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 //@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "employeeEducationId")
 
 public class EmployeeEducation {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long employeeEducationId;   // surrogate PK for JPA
 
     // FK → employee.employee_id (Phase-1 as plain field)

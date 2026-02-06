@@ -1,5 +1,6 @@
 package com.example.security.model;
 
+import com.example.EmployeeManagement.Model.Employee;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,8 +30,14 @@ public class User {
     private boolean enabled = true;
 
     // Link to employee (ownership checks)
-    @Column(name = "employee_id")
+    @Column(unique = true)
     private Long employeeId;
+
+
+
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
+    private Employee employee;
+
 
     // EMPLOYEE + optional ONE HR role
     @ManyToMany(fetch = FetchType.EAGER)

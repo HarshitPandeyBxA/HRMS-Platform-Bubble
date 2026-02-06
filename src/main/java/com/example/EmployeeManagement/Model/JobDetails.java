@@ -13,16 +13,19 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "job_details")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
+@Setter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 //@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "jobId")
 
 public class JobDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long jobId;
 
     // FK → employee.employee_id (Phase-1: keep flat)
