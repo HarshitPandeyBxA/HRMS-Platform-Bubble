@@ -10,14 +10,16 @@ import com.example.hrms_platform_document.exception.InvalidDocumentStateExceptio
 import com.example.hrms_platform_document.repository.DocumentRepository;
 import com.example.hrms_platform_document.repository.DocumentVersionRepository;
 import com.example.hrms_platform_document.service.storage.StorageService;
-import lombok.Data;
+import com.example.security.util.SecurityUtil;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import java.util.UUID;
-@Data
+
 @Service
 public class DocumentService {
 
@@ -25,32 +27,52 @@ public class DocumentService {
     private final DocumentVersionRepository versionRepository;
     private final StorageService storageService;
     private final DocumentAuditService auditService;
+    private final SecurityUtil securityUtil;
 
     public DocumentService(
             DocumentRepository documentRepository,
             DocumentVersionRepository versionRepository,
             StorageService storageService,
-            DocumentAuditService auditService
+            DocumentAuditService auditService,
+            SecurityUtil securityUtil
     ) {
         this.documentRepository = documentRepository;
         this.versionRepository = versionRepository;
         this.storageService = storageService;
         this.auditService = auditService;
+        this.securityUtil = securityUtil;
     }
 
-    /**
-     * Upload document (initial upload)
-     */
+    /* ============================================================
+       INTERNAL HELPER
+       ============================================================ */
+
+    private Employee getCurrentEmployee() {
+        return securityUtil.getLoggedInEmployee();
+    }
+
+    private String buildStagingKey(Long employeeId, Long documentId) {
+        return "staging/employee/"
+                + employeeId + "/"
+                + documentId + "/"
+                + UUID.randomUUID();
+    }
+
+    /* ============================================================
+       UPLOAD DOCUMENT (LOGGED-IN EMPLOYEE)
+       ============================================================ */
+
+    @PreAuthorize("hasRole('EMPLOYEE')")
     @Transactional
     public Document uploadDocument(
-            Employee owner,
             MultipartFile file,
             String documentType,
             String documentName,
             boolean isConfidential
     ) {
 
-        // 1️⃣ Create Document (logical)
+        Employee owner = getCurrentEmployee();
+
         Document document = new Document();
         document.setEmployee(owner);
         document.setUploadedBy(owner);
@@ -61,13 +83,13 @@ public class DocumentService {
 
         document = documentRepository.save(document);
 
-        // 2️⃣ Create S3 key (STAGING)
-        String s3Key = buildStagingKey(owner.getEmployeeId(), document.getDocumentId());
+        String s3Key = buildStagingKey(
+                owner.getEmployeeId(),   // ✅ business employeeId
+                document.getDocumentId()
+        );
 
-        // 3️⃣ Upload to S3
         storageService.uploadToStaging(file, s3Key);
 
-        // 4️⃣ Create Document Version
         DocumentVersion version = new DocumentVersion();
         version.setDocument(document);
         version.setUploadedBy(owner);
@@ -76,11 +98,9 @@ public class DocumentService {
 
         version = versionRepository.save(version);
 
-        // 5️⃣ Update document with current version
         document.setCurrentVersion(version);
         documentRepository.save(document);
 
-        // 6️⃣ Audit log
         auditService.log(
                 document,
                 version,
@@ -92,72 +112,131 @@ public class DocumentService {
         return document;
     }
 
-    private String buildStagingKey(Long employeeId, Long documentId) {
-        return "staging/employee/"
-                + employeeId + "/"
-                + documentId + "/"
-                + UUID.randomUUID();
-    }
+    /* ============================================================
+       RE-UPLOAD DOCUMENT (ONLY OWNER, ONLY REJECTED)
+       ============================================================ */
 
+    @PreAuthorize("hasRole('EMPLOYEE')")
     @Transactional
-    public Document reuploadDocument(
-            Long documentId,
-            Employee employee,
-            MultipartFile file
-    ) {
+    public Document reuploadDocument(Long documentId, MultipartFile file) {
+
+        Employee currentEmployee = getCurrentEmployee();
+
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
 
-        if (document.getStatus() != DocumentStatus.REJECTED) {
-            throw new InvalidDocumentStateException("Only REJECTED documents can be re-uploaded");
-
+        // ownership check
+        if (!document.getEmployee().getEmployeeId()
+                .equals(currentEmployee.getEmployeeId())) {
+            throw new RuntimeException("You are not allowed to re-upload this document");
         }
 
-        // 1️⃣ Get next version number
+        if (document.getStatus() != DocumentStatus.REJECTED) {
+            throw new InvalidDocumentStateException(
+                    "Only REJECTED documents can be re-uploaded"
+            );
+        }
+
         int nextVersion = versionRepository
                 .findTopByDocumentDocumentIdOrderByVersionNumberDesc(documentId)
                 .map(v -> v.getVersionNumber() + 1)
                 .orElse(1);
 
-        // 2️⃣ Build staging key
         String s3Key = "staging/employee/"
-                + document.getEmployee().getEmployeeId()
+                + currentEmployee.getEmployeeId()
                 + "/" + documentId
                 + "/v" + nextVersion;
 
-        // 3️⃣ Upload to S3
         storageService.uploadToStaging(file, s3Key);
 
-        // 4️⃣ Create new version
         DocumentVersion version = new DocumentVersion();
         version.setDocument(document);
-        version.setUploadedBy(employee);
+        version.setUploadedBy(currentEmployee);
         version.setVersionNumber(nextVersion);
         version.setS3Key(s3Key);
 
         versionRepository.save(version);
 
-        // 5️⃣ Update document
         document.setCurrentVersion(version);
         document.setStatus(DocumentStatus.PENDING_VERIFICATION);
         documentRepository.save(document);
 
-        // 6️⃣ Audit
         auditService.log(
                 document,
                 version,
                 DocumentAuditAction.REUPLOAD,
-                employee,
+                currentEmployee,
                 "Document re-uploaded after rejection"
         );
 
         return document;
     }
 
+    /* ============================================================
+       DOWNLOAD (ONLY OWNER, ONLY VERIFIED)
+       ============================================================ */
+
+
+    @Transactional(readOnly = true)
+    public Document getDocumentForDownload(Long documentId) {
+
+        Employee currentEmployee = securityUtil.getLoggedInEmployee();
+
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+
+        // ADMIN override
+        if (securityUtil.hasRole("ADMIN")) {
+            return document;
+        }
+
+        // EMPLOYEE: only own + VERIFIED
+        if (securityUtil.hasRole("EMPLOYEE")) {
+
+            if (!document.getEmployee().getEmployeeId()
+                    .equals(currentEmployee.getEmployeeId())) {
+                throw new RuntimeException("You are not allowed to access this document");
+            }
+
+            if (document.getStatus() != DocumentStatus.VERIFIED) {
+                throw new InvalidDocumentStateException(
+                        "Only VERIFIED documents can be downloaded"
+                );
+            }
+
+            return document;
+        }
+
+        throw new RuntimeException("Access denied");
+    }
+
+
+    /* ============================================================
+       GENERIC FETCH (ADMIN / INTERNAL)
+       ============================================================ */
+
     @Transactional(readOnly = true)
     public Document getDocumentById(Long documentId) {
         return documentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
+    }
+
+    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
+    @Transactional(readOnly = true)
+    public Page<Document> listPendingVerifications(Pageable pageable) {
+        return (Page<Document>) documentRepository.findByStatus(
+                DocumentStatus.PENDING_VERIFICATION,
+                pageable
+        );
+    }
+
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    @Transactional(readOnly = true)
+    public Page<Document> listPendingDocuments(Pageable pageable) {
+        return (Page<Document>) documentRepository.findByStatus(
+                DocumentStatus.PENDING_VERIFICATION,
+                pageable
+        );
     }
 
 

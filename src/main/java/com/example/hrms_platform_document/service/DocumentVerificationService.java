@@ -1,6 +1,5 @@
 package com.example.hrms_platform_document.service;
 
-
 import com.example.EmployeeManagement.Model.Employee;
 import com.example.hrms_platform_document.entity.Document;
 import com.example.hrms_platform_document.entity.DocumentVersion;
@@ -10,6 +9,7 @@ import com.example.hrms_platform_document.exception.DocumentNotFoundException;
 import com.example.hrms_platform_document.exception.InvalidDocumentStateException;
 import com.example.hrms_platform_document.repository.DocumentRepository;
 import com.example.hrms_platform_document.service.storage.StorageService;
+import com.example.security.util.SecurityUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,26 +19,31 @@ public class DocumentVerificationService {
     private final DocumentRepository documentRepository;
     private final StorageService storageService;
     private final DocumentAuditService auditService;
+    private final SecurityUtil securityUtil;
 
     public DocumentVerificationService(
             DocumentRepository documentRepository,
             StorageService storageService,
-            DocumentAuditService auditService
+            DocumentAuditService auditService,
+            SecurityUtil securityUtil
     ) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.auditService = auditService;
+        this.securityUtil = securityUtil;
     }
 
-    /**
-     * APPROVE document
-     */
+    /* ============================================================
+       VERIFY DOCUMENT (HR / ADMIN)
+       ============================================================ */
+
     @Transactional
-    public void verifyDocument(Long documentId, Employee verifier) {
+    public void verifyDocument(Long documentId) {
+
+        Employee verifier = securityUtil.getLoggedInEmployee();
 
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
-
 
         if (document.getStatus() != DocumentStatus.PENDING_VERIFICATION) {
             throw new InvalidDocumentStateException(
@@ -48,26 +53,21 @@ public class DocumentVerificationService {
 
         DocumentVersion version = document.getCurrentVersion();
 
-        // 1️⃣ Build verified S3 key
         String verifiedKey = buildVerifiedKey(
-                document.getEmployee().getEmployeeId(),
+                document.getEmployee().getEmployeeId(), // ✅ business employeeId
                 document.getDocumentId(),
                 version.getVersionNumber()
         );
 
-        // 2️⃣ Move file in S3 (staging → verified)
         storageService.moveToVerified(version.getS3Key(), verifiedKey);
 
-        // 3️⃣ Update version with verified key
         version.setS3Key(verifiedKey);
 
-        // 4️⃣ Update document status
         document.setStatus(DocumentStatus.VERIFIED);
         document.setApprovedBy(verifier);
 
         documentRepository.save(document);
 
-        // 5️⃣ Audit
         auditService.log(
                 document,
                 version,
@@ -77,21 +77,20 @@ public class DocumentVerificationService {
         );
     }
 
-    /**
-     * REJECT document
-     */
+    /* ============================================================
+       REJECT DOCUMENT (HR / ADMIN)
+       ============================================================ */
+
     @Transactional
-    public void rejectDocument(
-            Long documentId,
-            Employee verifier,
-            String reason
-    ) {
+    public void rejectDocument(Long documentId, String reason) {
+
+        Employee verifier = securityUtil.getLoggedInEmployee();
 
         Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new RuntimeException("Document not found"));
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
 
         if (document.getStatus() != DocumentStatus.PENDING_VERIFICATION) {
-            throw new IllegalStateException(
+            throw new InvalidDocumentStateException(
                     "Only PENDING documents can be rejected"
             );
         }

@@ -1,7 +1,7 @@
 package com.example.hrms_platform_document.controller;
 
-import com.example.EmployeeManagement.Model.Employee;
 import com.example.hrms_platform_document.dto.DocumentResponse;
+import com.example.hrms_platform_document.dto.PendingDocumentResponse;
 import com.example.hrms_platform_document.entity.Document;
 import com.example.hrms_platform_document.enums.DocumentAccessAction;
 import com.example.hrms_platform_document.service.DocumentAccessLogService;
@@ -9,6 +9,11 @@ import com.example.hrms_platform_document.service.DocumentMapper;
 import com.example.hrms_platform_document.service.DocumentService;
 import com.example.hrms_platform_document.service.DocumentVerificationService;
 import com.example.hrms_platform_document.service.storage.StorageService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,13 +25,6 @@ public class DocumentController {
     private final DocumentVerificationService verificationService;
     private final DocumentAccessLogService accessLogService;
     private final StorageService storageService;
-
-    // TEMP dummy employee
-    private Employee dummyEmployee() {
-        Employee e = new Employee();
-        e.setEmployeeId(1L);
-        return e;
-    }
 
     public DocumentController(
             DocumentService documentService,
@@ -40,7 +38,11 @@ public class DocumentController {
         this.storageService = storageService;
     }
 
-    // 1️⃣ Upload
+    /* ============================================================
+       1️⃣ Upload document (logged-in employee)
+       ============================================================ */
+
+    @PreAuthorize("hasRole('EMPLOYEE')")
     @PostMapping("/upload")
     public DocumentResponse upload(
             @RequestParam MultipartFile file,
@@ -48,7 +50,6 @@ public class DocumentController {
             @RequestParam String documentName
     ) {
         Document doc = documentService.uploadDocument(
-                dummyEmployee(),
                 file,
                 documentType,
                 documentName,
@@ -57,46 +58,55 @@ public class DocumentController {
         return DocumentMapper.toResponse(doc);
     }
 
+    /* ============================================================
+       2️⃣ Re-upload document (only owner)
+       ============================================================ */
 
-    // 2️⃣ Re-upload
     @PostMapping("/{id}/reupload")
-    public Document reupload(
+    public DocumentResponse reupload(
             @PathVariable Long id,
             @RequestParam MultipartFile file
     ) {
-        return documentService.reuploadDocument(
-                id,
-                dummyEmployee(),
-                file
-        );
+        Document doc = documentService.reuploadDocument(id, file);
+        return DocumentMapper.toResponse(doc);
     }
 
-    // 3️⃣ Verify
+    /* ============================================================
+       3️⃣ Verify document (HR / ADMIN)
+       ============================================================ */
+
+    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
     @PostMapping("/{id}/verify")
     public void verify(@PathVariable Long id) {
-        verificationService.verifyDocument(id, dummyEmployee());
+        verificationService.verifyDocument(id);
     }
 
-    // 4️⃣ Reject
+    /* ============================================================
+       4️⃣ Reject document (HR / ADMIN)
+       ============================================================ */
+
+    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
     @PostMapping("/{id}/reject")
     public void reject(
             @PathVariable Long id,
             @RequestParam String reason
     ) {
-        verificationService.rejectDocument(id, dummyEmployee(), reason);
+        verificationService.rejectDocument(id, reason);
     }
 
-    // 5️⃣ Download
+    /* ============================================================
+       5️⃣ Download document (only owner, only VERIFIED)
+       ============================================================ */
+
     @GetMapping("/{id}/download")
     public String download(
             @PathVariable Long id,
             @RequestHeader(value = "X-IP", required = false) String ip
     ) {
-        Document doc = documentService.getDocumentById(id);
+        Document doc = documentService.getDocumentForDownload(id);
 
         accessLogService.logAccess(
                 doc,
-                dummyEmployee(),
                 DocumentAccessAction.DOWNLOAD,
                 ip != null ? ip : "UNKNOWN"
         );
@@ -105,5 +115,31 @@ public class DocumentController {
                 doc.getCurrentVersion().getS3Key()
         );
     }
+
+    @PreAuthorize("hasAnyRole('HR_OPERATIONS','ADMIN')")
+    @GetMapping("/pending")
+    public Page<DocumentResponse> listPendingVerifications(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.ASC)
+            Pageable pageable
+    ) {
+        return documentService
+                .listPendingVerifications(pageable)
+                .map(DocumentMapper::toResponse);
+    }
+
+    @PreAuthorize("hasAnyRole('HR','ADMIN')")
+    @GetMapping("/pending")
+    public Page<PendingDocumentResponse> listPendingDocuments(
+            @PageableDefault(
+                    size = 10,
+                    sort = "createdAt",
+                    direction = Sort.Direction.ASC
+            ) Pageable pageable
+    ) {
+        return documentService
+                .listPendingDocuments(pageable)
+                .map(DocumentMapper::toPendingResponse);
+    }
+
 
 }

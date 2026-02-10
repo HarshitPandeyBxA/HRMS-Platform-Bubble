@@ -22,8 +22,6 @@ public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
-    private Long id;
-
     @Column(name = "employee_id", unique = true)
     private Long employeeId;
 

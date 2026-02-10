@@ -5,23 +5,30 @@ import com.example.hrms_platform_document.entity.Document;
 import com.example.hrms_platform_document.entity.DocumentAccessLog;
 import com.example.hrms_platform_document.enums.DocumentAccessAction;
 import com.example.hrms_platform_document.repository.DocumentAccessLogRepository;
+import com.example.security.util.SecurityUtil;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DocumentAccessLogService {
 
     private final DocumentAccessLogRepository logRepository;
+    private final SecurityUtil securityUtil;
 
-    public DocumentAccessLogService(DocumentAccessLogRepository logRepository) {
+    public DocumentAccessLogService(
+            DocumentAccessLogRepository logRepository,
+            SecurityUtil securityUtil
+    ) {
         this.logRepository = logRepository;
+        this.securityUtil = securityUtil;
     }
 
     public void logAccess(
             Document document,
-            Employee employee,
             DocumentAccessAction action,
             String ipAddress
     ) {
+        Employee employee = securityUtil.getLoggedInEmployee();
+
         DocumentAccessLog log = new DocumentAccessLog();
         log.setDocument(document);
         log.setEmployee(employee);
