@@ -36,9 +36,12 @@ public class DocumentVerificationService {
     @Transactional
     public void verifyDocument(Long documentId, Employee verifier) {
 
+        System.out.println("**************VERIFY START******************");
+
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
 
+        System.out.println("DOCUMENT FOUND: " + document.getDocumentId());
 
         if (document.getStatus() != DocumentStatus.PENDING_VERIFICATION) {
             throw new InvalidDocumentStateException(
@@ -46,7 +49,9 @@ public class DocumentVerificationService {
             );
         }
 
+
         DocumentVersion version = document.getCurrentVersion();
+        System.out.println("VERSION OBJECT: " + version);
 
         // 1️⃣ Build verified S3 key
         String verifiedKey = buildVerifiedKey(
@@ -54,6 +59,8 @@ public class DocumentVerificationService {
                 document.getDocumentId(),
                 version.getVersionNumber()
         );
+
+        System.out.println("TARGET KEY: " + verifiedKey);
 
         // 2️⃣ Move file in S3 (staging → verified)
         storageService.moveToVerified(version.getS3Key(), verifiedKey);
@@ -75,6 +82,8 @@ public class DocumentVerificationService {
                 verifier,
                 "Document verified successfully"
         );
+
+        System.out.println("*******************VERIFY END************************");
     }
 
     /**

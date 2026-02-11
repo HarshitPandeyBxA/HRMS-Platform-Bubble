@@ -25,42 +25,92 @@ public class OnboardingService {
     private final PasswordGenerator passwordGenerator;
     private final EmailService emailService; // ✅ ADD
 
-    @Transactional
+//    @Transactional
+//    public EmployeeCreateResponse createEmployee(
+//            EmployeeCreateRequestDTO dto,
+//            User hrUser) {
+//
+//        String companyEmail = companyEmailGenerator.generate(
+//                dto.getFirstName(),
+//                dto.getLastName()
+//        );
+//
+//        String tempPassword = passwordGenerator.generateTempPassword();
+//
+//        RegisterRequest registerRequest = new RegisterRequest();
+//        registerRequest.setUsername(companyEmail);
+//        registerRequest.setPassword(tempPassword);
+//
+//        User user = userService.registerNewUser(registerRequest);
+//
+//        Employee employee = employeeService.toEntity(dto, hrUser.getId());
+////        employee.setEmployeeId(user.getEmployeeId());
+//        employee.setCompanyEmail(companyEmail);
+//        employee.setUser(user);
+//        employee.setCreatedAt(LocalDateTime.now());
+//
+//        employeeService.addEmployeeInternal(employee);
+//
+//        // ✅ SEND EMAIL
+//        emailService.sendCredentials(
+//                dto.getPersonalEmail(),
+//                companyEmail,
+//                tempPassword
+//        );
+//
+//        // ✅ DO NOT RETURN PASSWORD
+//        return new EmployeeCreateResponse(
+//                user.getEmployeeId(),
+//                companyEmail,
+//                "Credentials sent to personal email"
+//        );
+//    }
+
+@Transactional
     public EmployeeCreateResponse createEmployee(
             EmployeeCreateRequestDTO dto,
             User hrUser) {
 
+        // 1️⃣ Generate company email + temp password
         String companyEmail = companyEmailGenerator.generate(
                 dto.getFirstName(),
                 dto.getLastName()
         );
-
         String tempPassword = passwordGenerator.generateTempPassword();
 
+        // 2️⃣ Create USER first
         RegisterRequest registerRequest = new RegisterRequest();
         registerRequest.setUsername(companyEmail);
         registerRequest.setPassword(tempPassword);
 
         User user = userService.registerNewUser(registerRequest);
 
+        // 3️⃣ Create EMPLOYEE (❗ DO NOT set employeeId)
         Employee employee = employeeService.toEntity(dto, hrUser.getId());
-        employee.setEmployeeId(user.getEmployeeId());
         employee.setCompanyEmail(companyEmail);
-        employee.setUser(user);
         employee.setCreatedAt(LocalDateTime.now());
 
-        employeeService.addEmployeeInternal(employee);
+        // 4️⃣ Save employee → employeeId GENERATED here
+        Employee savedEmployee = employeeService.addEmployeeInternal(employee);
 
-        // ✅ SEND EMAIL
+        // 5️⃣ Link USER ↔ EMPLOYEE
+        user.setEmployeeId(savedEmployee.getEmployeeId());
+        user.setEmployee(savedEmployee);
+        savedEmployee.setUser(user);
+
+        // 6️⃣ Persist updated user
+        userService.save(user);
+
+        // 7️⃣ Send credentials email
         emailService.sendCredentials(
                 dto.getPersonalEmail(),
                 companyEmail,
                 tempPassword
         );
 
-        // ✅ DO NOT RETURN PASSWORD
+        // 8️⃣ Return response (NO password exposed)
         return new EmployeeCreateResponse(
-                user.getEmployeeId(),
+                savedEmployee.getEmployeeId(),
                 companyEmail,
                 "Credentials sent to personal email"
         );

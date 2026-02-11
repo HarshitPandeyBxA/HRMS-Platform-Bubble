@@ -1,6 +1,8 @@
 package com.example.security.config;
 
 import com.example.security.jwt.JwtAuthenticationFilter;
+import com.example.security.oauth.OAuth2AuthenticationSuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +33,10 @@ public class SecurityConfig {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
@@ -40,27 +46,55 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-
-                        // Public APIs
                         .requestMatchers(
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/v3/api-docs",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
+                                "/error"
                         ).permitAll()
-
-                        // Debug (TEMPORARY)
-                        .requestMatchers("/api/v1/hrms/debug/**").authenticated()
-
-                        // Everything else secured
                         .anyRequest().authenticated()
                 )
+
+                .oauth2Login(oauth -> oauth
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                )
+
+                // ⭐ THIS IS THE REAL FIX
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler((request, response, ex1) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.getWriter().write("""
+            {
+              "error": "Access denied",
+              "message": "Contact Admin or HR"
+            }
+            """);
+                        })
+                        .authenticationEntryPoint((request, response, ex2) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("""
+            {
+              "error": "Unauthorized",
+              "message": "Authentication required"
+            }
+            """);
+                        })
+                )
+
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
+
 
         return http.build();
     }

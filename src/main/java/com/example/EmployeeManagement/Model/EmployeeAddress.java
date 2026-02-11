@@ -1,5 +1,6 @@
 package com.example.EmployeeManagement.Model;
 
+import com.example.EmployeeManagement.audit.entity.AuditableEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
@@ -13,8 +14,11 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class EmployeeAddress {
+@EqualsAndHashCode(
+        onlyExplicitlyIncluded = true,
+        callSuper = false
+)
+public class EmployeeAddress extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

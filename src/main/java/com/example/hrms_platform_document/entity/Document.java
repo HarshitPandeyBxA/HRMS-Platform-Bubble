@@ -40,7 +40,7 @@ public class Document {
 
     private Boolean isConfidential = false;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "current_version_id")
     private DocumentVersion currentVersion;
 

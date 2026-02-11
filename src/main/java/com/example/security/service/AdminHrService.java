@@ -55,8 +55,9 @@ public class AdminHrService {
 //                .orElseThrow(() -> new RuntimeException("HR role not found"));
 
         Role hrRole = roleRepository
-                .findByName(request.getRole())
+                .findByName("ROLE_" + request.getRole())
                 .orElseThrow(() -> new RuntimeException("HR role not found"));
+
 
         hrUser.getRoles().add(hrRole);
         userRepository.save(hrUser);

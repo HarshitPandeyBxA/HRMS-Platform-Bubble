@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 
+import java.util.List;
 import java.util.UUID;
 @Data
 @Service
@@ -50,6 +51,8 @@ public class DocumentService {
             boolean isConfidential
     ) {
 
+        System.out.println("Too Before");
+
         // 1️⃣ Create Document (logical)
         Document document = new Document();
         document.setEmployee(owner);
@@ -62,6 +65,8 @@ public class DocumentService {
         document = documentRepository.save(document);
 
         // 2️⃣ Create S3 key (STAGING)
+        System.out.println("Before");
+        System.out.println(owner.getEmployeeId());
         String s3Key = buildStagingKey(owner.getEmployeeId(), document.getDocumentId());
 
         // 3️⃣ Upload to S3
@@ -158,6 +163,11 @@ public class DocumentService {
     public Document getDocumentById(Long documentId) {
         return documentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException(documentId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Document> getDocumentsForCurrentEmployee(Employee employee) {
+        return documentRepository.findByEmployee(employee);
     }
 
 

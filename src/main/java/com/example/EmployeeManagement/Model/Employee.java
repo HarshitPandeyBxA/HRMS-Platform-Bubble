@@ -1,6 +1,7 @@
 
 package com.example.EmployeeManagement.Model;
 
+import com.example.EmployeeManagement.audit.entity.AuditableEntity;
 import com.example.security.model.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -14,17 +15,26 @@ import java.util.Set;
 @Table(name = "employee")
 @Getter
 @Setter
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(
+        onlyExplicitlyIncluded = true,
+        callSuper = false
+)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Employee {
+public class Employee extends AuditableEntity {
 
+//    private Long dummy_id;
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
-
-    @Column(name = "employee_id", unique = true)
+    @GeneratedValue(
+            strategy = GenerationType.SEQUENCE,
+            generator = "employee_id_generator"
+    )
+    @SequenceGenerator(
+            name = "employee_id_generator",
+            sequenceName = "employee_id_seq",
+            allocationSize = 1
+    )
+    @Column(name = "employee_id")
     private Long employeeId;
 
     private String firstName;

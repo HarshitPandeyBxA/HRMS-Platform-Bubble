@@ -1,6 +1,7 @@
 package com.example.EmployeeManagement.Repository;
 
-import com.example.EmployeeManagement.Model.AuditLog;
+//import com.example.EmployeeManagement.Model.AuditLog;
+import com.example.EmployeeManagement.audit.entity.AuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -2,9 +2,16 @@ package com.example.security.util;
 
 import com.example.EmployeeManagement.Model.Employee;
 import com.example.EmployeeManagement.Repository.EmployeeRepository;
+import com.example.security.model.CustomUserDetails;
+import com.example.security.model.User;
+import com.example.security.repository.UserRepository;
+import com.example.security.util.ApplicationContextProvider.ApplicationContextProvider;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 @Component("securityUtil")
@@ -38,9 +45,60 @@ public class SecurityUtil {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
     }
 
-    public String getCurrentUsername() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth.getName(); // username (email)
+
+    public Employee getCurrentEmployee() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("No authenticated user found");
+        }
+
+        String username = authentication.getName(); // email
+
+        return employeeRepository.findByUser_Username(username)
+                .orElseThrow(() ->
+                        new RuntimeException("Employee not linked to logged-in user"));
     }
+
+
+
+    public static String getCurrentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || auth.getPrincipal() == null) {
+            return "SYSTEM";
+        }
+
+        Object principal = auth.getPrincipal();
+
+        if (principal instanceof CustomUserDetails cud) {
+            return cud.getUsername();
+        }
+
+        if (principal instanceof org.springframework.security.core.userdetails.User user) {
+            return user.getUsername();
+        }
+
+        return "SYSTEM";
+    }
+
+
+    public static Long getCurrentEmployeeId() {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !(auth.getPrincipal() instanceof CustomUserDetails)) {
+            return null;
+        }
+
+        CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+        return userDetails.getEmployeeId();
+    }
+
+
+
+
 }
 

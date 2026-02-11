@@ -1,6 +1,7 @@
 package com.example.EmployeeManagement.Model;
 
 
+import com.example.EmployeeManagement.audit.entity.AuditableEntity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -19,10 +20,13 @@ import java.time.LocalDateTime;
 @Builder
 @Getter
 @Setter
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(
+        onlyExplicitlyIncluded = true,
+        callSuper = false
+)
 //@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "historyId")
 
-public class EmployeeManagerHistory {
+public class EmployeeManagerHistory extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

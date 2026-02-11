@@ -1,6 +1,7 @@
 package com.example.EmployeeManagement.Model;
 
 
+import com.example.EmployeeManagement.audit.entity.AuditableEntity;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
@@ -15,13 +16,16 @@ import java.time.LocalDate;
 @Builder
 @Getter
 @Setter
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(
+        onlyExplicitlyIncluded = true,
+        callSuper = false
+)
 //@JsonIdentityInfo(
 //        generator = ObjectIdGenerators.PropertyGenerator.class,
 //        property = "hierarchyId"
 //)
 
-public class EmployeeHierarchy {
+public class EmployeeHierarchy extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

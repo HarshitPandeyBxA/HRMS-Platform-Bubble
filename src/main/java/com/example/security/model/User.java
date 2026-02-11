@@ -72,4 +72,10 @@ public class User {
     public void onUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public boolean hasRole(String roleName) {
+        return roles != null && roles.stream()
+                .anyMatch(role -> roleName.equalsIgnoreCase(role.getName()));
+    }
+
 }

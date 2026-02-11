@@ -16,7 +16,7 @@ public class AuditLogDTO {
 
     private String actionType;
 
-    private Long changedBy;
+    private String changedBy;
     private LocalDateTime changedAt;
 
     private Boolean approvalRequired;

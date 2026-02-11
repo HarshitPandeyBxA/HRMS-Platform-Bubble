@@ -2,8 +2,9 @@ package com.example.EmployeeManagement.Service;
 
 import com.example.EmployeeManagement.DTO.AuditLogDTO;
 import com.example.EmployeeManagement.Exception.DataNotFoundException;
-import com.example.EmployeeManagement.Model.AuditLog;
+//import com.example.EmployeeManagement.Model.AuditLog;
 import com.example.EmployeeManagement.Repository.AuditLogRepository;
+import com.example.EmployeeManagement.audit.entity.AuditLog;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -87,7 +88,7 @@ public class AuditLogService {
         AuditLogDTO dto = new AuditLogDTO();
         dto.setAuditId(log.getAuditId());
         dto.setTableName(log.getTableName());
-        dto.setFieldName(log.getFieldName());
+//        dto.setFieldName(log.getFieldName());
         dto.setOldValue(log.getOldValue());
         dto.setNewValue(log.getNewValue());
         dto.setActionType(log.getActionType());
